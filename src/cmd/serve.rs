@@ -109,6 +109,7 @@ async fn handle_request(req: Request<Body>, mut root: PathBuf) -> Result<Respons
     // Remove the trailing slash from the request path
     // otherwise `PathBuf` will interpret it as an absolute path
     root.push(&req.uri().path()[1..]);
+    let mimetype_guess = mime_guess::from_path(root.as_path());
     let result = tokio::fs::read(root).await;
 
     let contents = match result {
@@ -125,7 +126,11 @@ async fn handle_request(req: Request<Body>, mut root: PathBuf) -> Result<Respons
         Ok(contents) => contents,
     };
 
-    Ok(Response::builder().status(StatusCode::OK).body(Body::from(contents)).unwrap())
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, mimetype_guess.first_or_octet_stream().as_ref())
+        .status(StatusCode::OK)
+        .body(Body::from(contents))
+        .unwrap())
 }
 
 fn livereload_js() -> Response<Body> {
